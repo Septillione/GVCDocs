@@ -4,20 +4,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddDocumentScreen(
     viewModel: DocumentViewModel,
-    navController: NavController
+    onBack: () -> Unit,
+    onSave: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -31,22 +31,23 @@ fun AddDocumentScreen(
             TopAppBar(
                 title = { Text("Добавить документ") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 actions = {
                     IconButton(onClick = {
-                        val newDocument = Doc(
-                            title = title,
-                            description = description,
-                            content = content,
-                            type = type,
-                            category = category,
-                            isImportant = isImportant
+                        viewModel.insert(
+                            Doc(
+                                title = title,
+                                description = description,
+                                content = content,
+                                type = type,
+                                category = category,
+                                isImportant = isImportant
+                            )
                         )
-                        viewModel.insert(newDocument)
-                        navController.popBackStack()
+                        onSave()
                     }) {
                         Icon(Icons.Default.Check, contentDescription = "Сохранить")
                     }
@@ -76,51 +77,55 @@ fun AddDocumentScreen(
 @Composable
 fun EditDocumentScreen(
     viewModel: DocumentViewModel,
-    documentId: Int?,
-    navController: NavController
+    documentId: Int,
+    onBack: () -> Unit,
+    onSave: () -> Unit
 ) {
-    if (documentId == null) return
+    val document by viewModel.getDocumentById(documentId).collectAsStateWithLifecycle(initialValue = null)
 
-    LaunchedEffect(documentId) {
-        viewModel.getDocumentById(documentId)
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var content by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf(DocumentType.REGULATION) }
+    var category by remember { mutableStateOf("Общие") }
+    var isImportant by remember { mutableStateOf(false) }
+
+    LaunchedEffect(document) {
+        if (document != null) {
+            title = document!!.title
+            description = document!!.description
+            content = document!!.content
+            type = document!!.type
+            category = document!!.category
+            isImportant = document!!.isImportant
+        }
     }
-
-    val document by viewModel.currentDocument.collectAsState()
-
-    if (document == null) {
-        CircularProgressIndicator(modifier = Modifier.fillMaxSize().wrapContentSize())
-        return
-    }
-
-    var title by remember { mutableStateOf(document!!.title) }
-    var description by remember { mutableStateOf(document!!.description) }
-    var content by remember { mutableStateOf(document!!.content) }
-    var type by remember { mutableStateOf(document!!.type) }
-    var category by remember { mutableStateOf(document!!.category) }
-    var isImportant by remember { mutableStateOf(document!!.isImportant) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Редактировать документ") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 actions = {
                     IconButton(onClick = {
-                        val updatedDocument = document!!.copy(
-                            title = title,
-                            description = description,
-                            content = content,
-                            type = type,
-                            category = category,
-                            isImportant = isImportant,
-                            updatedAt = System.currentTimeMillis()
-                        )
-                        viewModel.update(updatedDocument)
-                        navController.popBackStack()
+                        document?.let { doc ->
+                            viewModel.update(
+                                doc.copy(
+                                    title = title,
+                                    description = description,
+                                    content = content,
+                                    type = type,
+                                    category = category,
+                                    isImportant = isImportant,
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                            )
+                            onSave()
+                        }
                     }) {
                         Icon(Icons.Default.Check, contentDescription = "Сохранить")
                     }

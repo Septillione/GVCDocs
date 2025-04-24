@@ -73,4 +73,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     implementation(libs.material3)
+
+    implementation (libs.itext7.core)
+
+    implementation(libs.androidx.foundation)
 }
